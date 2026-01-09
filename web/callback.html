@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authenticating...</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="form-box" style="text-align: center;">
+            <h1>Authenticating</h1>
+            <div class="loader"></div>
+            <p>Please wait while we complete your login...</p>
+            <div id="error" class="error"></div>
+        </div>
+    </div>
+
+    <script>
+        async function handleCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const errorDiv = document.getElementById('error');
+
+            if (!code) {
+                errorDiv.textContent = 'Authorization code not found. Redirecting to login...';
+                setTimeout(() => window.location.href = 'login.html', 3000);
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8080/auth/gg/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('refresh_token', data.refresh_token);
+                    localStorage.setItem('user_email', data.email || 'Google User');
+                    window.location.href = 'dashboard.html';
+                } else {
+                    errorDiv.textContent = data.error || 'Authentication failed';
+                    setTimeout(() => window.location.href = 'login.html', 3000);
+                }
+            } catch (error) {
+                console.error('Error during callback:', error);
+                errorDiv.textContent = 'Connection error. Redirecting to login...';
+                setTimeout(() => window.location.href = 'login.html', 3000);
+            }
+        }
+
+        handleCallback();
+    </script>
+</body>
+
+</html>

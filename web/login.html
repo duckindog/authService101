@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Auth Service</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <div class="form-box">
@@ -22,6 +24,12 @@
                 <button type="submit">Login</button>
                 <div id="error" class="error"></div>
             </form>
+            <div class="divider">OR</div>
+            <a href="#" id="googleLogin" class="google-btn">
+                <img src="https://lh3.googleusercontent.com/COxitqSg9zYwIt8sreCmthByo7IfGjkvchW5G4E95xrCC0yAtNn89V07Lo-mYp_W17LqWInpBCos9T9MvA609NWhInSX9GZ9M3m7"
+                    alt="Google Logo">
+                Login with Google
+            </a>
             <p class="link">Don't have an account? <a href="register.html">Register here</a></p>
         </div>
     </div>
@@ -32,16 +40,16 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('error');
-            
+
             try {
                 const response = await fetch('http://localhost:8080/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ name: email, password })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     localStorage.setItem('access_token', data.access_token);
                     localStorage.setItem('refresh_token', data.refresh_token);
@@ -54,6 +62,18 @@
                 errorDiv.textContent = 'Connection error. Make sure the server is running.';
             }
         });
+        document.getElementById('googleLogin').addEventListener('click', (e) => {
+            e.preventDefault();
+            const clientID = '723755461536-m1jgt7l2jttm46m4b7kecs5u2sudi5au.apps.googleusercontent.com';
+            const redirectURI = encodeURIComponent('http://localhost:8080/callback.html');
+            const scope = encodeURIComponent('openid email profile');
+            const responseType = 'code';
+
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientID}&redirect_uri=${redirectURI}&response_type=${responseType}&scope=${scope}&access_type=offline&prompt=consent`;
+
+            window.location.href = authUrl;
+        });
     </script>
 </body>
+
 </html>

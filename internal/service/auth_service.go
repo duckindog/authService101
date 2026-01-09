@@ -2,10 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"time"
 
@@ -22,8 +18,8 @@ var (
 )
 
 type AuthService interface {
-	Register(ctx context.Context, email, password string) error
-	Login(ctx context.Context, email, password string) (string, string, error)
+	Register(ctx context.Context, name, password string) error
+	Login(ctx context.Context, name, password string) (string, string, error)
 	Refresh(ctx context.Context, rawRefreshToken string) (string, string, error)
 	Logout(ctx context.Context, rawRefreshToken string) error
 }
@@ -49,25 +45,18 @@ func NewAuthService(
 	}
 }
 
-func (s *authService) Register(ctx context.Context, email, password string) error {
+func (s *authService) Register(ctx context.Context, name, password string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return ErrInternal
 	}
 
-	_, err = s.userRepo.CreateUser(ctx, email, string(hash))
-	if err != nil {
-		if errors.Is(err, repository.ErrUserAlreadyExists) {
-			return errors.New("email already in use")
-		}
-		return ErrInternal
-	}
-
-	return nil
+	_, err = s.userRepo.CreateUser(ctx, name, string(hash))
+	return err;
 }
 
-func (s *authService) Login(ctx context.Context, email, password string) (accessToken, refreshToken string, err error) {
-	user, err := s.userRepo.GetByEmail(ctx, email)
+func (s *authService) Login(ctx context.Context, name, password string) (accessToken, refreshToken string, err error) {
+	user, err := s.userRepo.GetByUser(ctx, name)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
 			return "", "", ErrInvalidCredentials
@@ -139,18 +128,4 @@ func (s *authService) Logout(ctx context.Context, rawRefreshToken string) error 
 	return nil
 }
 
-func generateRefreshToken() (raw string, hash string, err error) {
-	b := make([]byte, 32)
-	if _, err = rand.Read(b); err != nil {
-		return "", "", err
-	}
 
-	raw = base64.RawURLEncoding.EncodeToString(b)
-	hash = hashRefreshToken(raw)
-	return
-}
-
-func hashRefreshToken(raw string) string {
-	hashBytes := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(hashBytes[:])
-}

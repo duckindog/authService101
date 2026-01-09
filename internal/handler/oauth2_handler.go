@@ -7,22 +7,22 @@ import (
 	"authService101/internal/model"
 )
 
-type AuthHandler struct {
-	service service.AuthService
+type OAuth2Handler struct { 
+	service service.OAuth2Service
 }
 
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
-	return &AuthHandler{service: authService}
+func NewOAuth2Handler(oauthService service.OAuth2Service) *OAuth2Handler {
+	return &OAuth2Handler{service: oauthService}
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req model.RegisterRequest
+func (h *OAuth2Handler) GGRegister(w http.ResponseWriter, r *http.Request) {
+	var req model.GGCode
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.sendError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.service.Register(r.Context(), req.Name, req.Password); err != nil {
+	if err := h.service.GGRegister(r.Context(), req.Code); err != nil {
 		h.sendError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -30,14 +30,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req model.LoginRequest
+func (h *OAuth2Handler) GGLogin(w http.ResponseWriter, r *http.Request) {
+	var req model.GGCode
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.sendError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	access, refresh, err := h.service.Login(r.Context(), req.Name, req.Password)
+	access, refresh, email, err := h.service.GGLogin(r.Context(), req.Code)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err == service.ErrInvalidCredentials {
@@ -50,17 +50,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	h.sendJSON(w, model.AuthResponse{
 		AccessToken:  access,
 		RefreshToken: refresh,
+		Email:        email,
 	}, http.StatusOK)
 }
 
-func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+func (h *OAuth2Handler) GGRefresh(w http.ResponseWriter, r *http.Request) {
 	var req model.RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.sendError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	access, refresh, err := h.service.Refresh(r.Context(), req.RefreshToken)
+	access, refresh, err := h.service.GGRefresh(r.Context(), req.RefreshToken)
 	if err != nil {
 		h.sendError(w, "invalid or expired refresh token", http.StatusUnauthorized)
 		return
@@ -72,14 +73,14 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+func (h *OAuth2Handler) GGLogout(w http.ResponseWriter, r *http.Request) {
 	var req model.RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.sendError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.service.Logout(r.Context(), req.RefreshToken); err != nil {
+	if err := h.service.GGLogout(r.Context(), req.RefreshToken); err != nil {
 		h.sendError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -87,12 +88,16 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *AuthHandler) sendJSON(w http.ResponseWriter, data interface{}, status int) {
+func (h *OAuth2Handler) GGCallBack(w http.ResponseWriter, r *http.Request) {
+	
+}
+
+func (h *OAuth2Handler) sendJSON(w http.ResponseWriter, data interface{}, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
 }
 
-func (h *AuthHandler) sendError(w http.ResponseWriter, message string, status int) {
+func (h *OAuth2Handler) sendError(w http.ResponseWriter, message string, status int) {
 	h.sendJSON(w, map[string]string{"error": message}, status)
 }

@@ -13,12 +13,18 @@ import (
 
 func main() {
 	cfg := config.Load()
+	ggCFG := config.LoadGGConfig()
 	
 	database, err := db.NewPostgres(cfg.DBURL)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer database.Close()
+
+	// Run migrations
+	if err := db.RunMigrations(database, "migrations"); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
 
 	userRepo := repository.NewUserRepository(database)
 	tokenRepo := repository.NewTokenRepository(database)
@@ -28,6 +34,9 @@ func main() {
 	authService := service.NewAuthService(userRepo, tokenRepo, jwtManager, cfg.RefreshTokenTTL)
 	authHandler := handler.NewAuthHandler(authService)
 	
+	oauth2Service := service.NewOAuth2Service(userRepo, tokenRepo, jwtManager, cfg.RefreshTokenTTL, ggCFG)
+	oauth2Handler := handler.NewOAuth2Handler(oauth2Service)
+
 	mux := http.NewServeMux()
 	
 	// Serve static files from the "web" directory
@@ -38,6 +47,11 @@ func main() {
 	mux.HandleFunc("/auth/login", authHandler.Login)
 	mux.HandleFunc("/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("/auth/logout", authHandler.Logout)
+
+	mux.HandleFunc("/auth/gg/register", oauth2Handler.GGRegister)
+	mux.HandleFunc("/auth/gg/login", oauth2Handler.GGLogin)
+	mux.HandleFunc("/auth/gg/refresh", oauth2Handler.GGRefresh)
+	mux.HandleFunc("/auth/gg/logout", oauth2Handler.GGLogout)
 
 	// Wrap with CORS middleware
 	corsHandler := corsMiddleware(mux)
