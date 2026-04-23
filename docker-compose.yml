@@ -1,0 +1,29 @@
+services:
+  # Your Go Authentication Service
+  api:
+    build: .
+    ports:
+      - "8081:8080" # Maps port 8081 on your host to 8080 in the container
+    environment:
+      # These environment variables will be injected into your Go app
+      - DB_URL=postgres://postgres:postgres_password@db:5432/auth_db?sslmode=disable
+      - JWT_SECRET=149973
+    depends_on:
+      - db
+
+  # Your PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_password
+      - POSTGRES_DB=auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # This ensures your database data persists even if the container is destroyed
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
